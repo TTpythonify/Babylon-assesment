@@ -1,0 +1,17 @@
+The login and registration page was implemented using Next.js with client-side Firebase authentication and Firestore for storing additional user data (full name). The approach focused on user experience, error handling, and robustness:
+
+Form management: Used React’s useState hooks to manage form inputs and useEffect to clear fields on page load. A toggle function allows switching between login and registration forms while resetting the form state.
+
+Authentication: Integrated Firebase Auth for email/password login and registration. For new users, the full name is stored in Firestore, linked to the user’s UID.
+
+Error handling: Added comprehensive error handling for both authentication errors (e.g., wrong password, email already in use) and Firestore network/offline errors. This ensures the app provides friendly, actionable messages without crashing.
+
+Future improvements:
+
+Implement offline-first capabilities, allowing users to log in even when temporarily offline and syncing data later.
+
+Add password strength validation and email verification for enhanced security.
+
+Improve UI/UX with loading indicators, animations, and better accessibility.
+
+Challenges faced included handling Firestore errors when the client was offline and ensuring the app didn’t crash. This was addressed by providing fallback values and clear user feedback.
