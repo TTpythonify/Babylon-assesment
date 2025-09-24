@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { auth, db } from "../../lib/firebase";
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from "firebase/auth";
-import { doc, setDoc, getDoc } from "firebase/firestore";
+import { doc, setDoc } from "firebase/firestore";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -15,10 +15,21 @@ export default function LoginPage() {
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
 
-  // Clear inputs on page load
+  // Check if user is already logged in
+  useEffect(() => {
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      if (user) {
+        router.push("/home");
+      }
+    });
+
+    return () => unsubscribe();
+  }, [router]);
+
+  // Clear inputs when switching between login/register
   useEffect(() => {
     clearForm();
-  }, []);
+  }, [isLogin]);
 
   const clearForm = () => {
     setFullName("");
@@ -29,7 +40,6 @@ export default function LoginPage() {
 
   const toggleLogin = () => {
     setIsLogin(!isLogin);
-    clearForm();
   };
 
   const handleSubmit = async (e) => {
@@ -45,34 +55,22 @@ export default function LoginPage() {
 
     try {
       if (isLogin) {
-        // Login
+        // Login existing user
         await signInWithEmailAndPassword(auth, email, password);
-
-        // Attempt to fetch user's full name from Firestore
-        let fullNameFromDb = "User";
-        try {
-          const userDoc = await getDoc(doc(db, "users", auth.currentUser.uid));
-          if (userDoc.exists()) fullNameFromDb = userDoc.data().fullName;
-        } catch (firestoreErr) {
-          console.error("Firestore fetch failed:", firestoreErr);
-          setError("Unable to fetch user info. Check your network.");
-        }
-
-        router.push(`/home?name=${encodeURIComponent(fullNameFromDb)}`);
+        router.push("/home");
       } else {
-        // Register
+        // Register new user
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         const user = userCredential.user;
 
-        try {
-          // Save full name in Firestore
-          await setDoc(doc(db, "users", user.uid), { fullName });
-        } catch (firestoreErr) {
-          console.error("Failed to save user data:", firestoreErr);
-          setError("Registration succeeded, but saving user info failed. Please try again later.");
-        }
+        // Save full name in Firestore
+        await setDoc(doc(db, "users", user.uid), { 
+          fullName,
+          email: user.email,
+          createdAt: new Date().toISOString()
+        });
 
-        router.push(`/home?name=${encodeURIComponent(fullName)}`);
+        router.push("/home");
       }
     } catch (err) {
       console.error("Authentication error:", err);
@@ -81,13 +79,17 @@ export default function LoginPage() {
           setError("No account found with this email. Please register first.");
           break;
         case "auth/wrong-password":
-          setError("Wrong email or password. Please try again.");
+        case "auth/invalid-credential":
+          setError("Invalid email or password. Please try again.");
           break;
         case "auth/email-already-in-use":
           setError("This email is already in use. Please login instead.");
           break;
         case "auth/invalid-email":
           setError("Invalid email format.");
+          break;
+        case "auth/weak-password":
+          setError("Password should be at least 6 characters.");
           break;
         default:
           setError("An unexpected error occurred. Please try again.");
@@ -121,48 +123,98 @@ export default function LoginPage() {
         <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "15px" }}>
           {!isLogin && (
             <div>
-              <label style={{ fontWeight: "bold", display: "block", marginBottom: "5px", color: "#222" }}>Full Name</label>
+              <label style={{ fontWeight: "bold", display: "block", marginBottom: "5px", color: "#222" }}>
+                Full Name
+              </label>
               <input
                 type="text"
                 placeholder="Enter your full name"
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
-                style={{ padding: "10px", borderRadius: "6px", border: "1px solid #ccc", fontSize: "16px", width: "100%", color: "#222" }}
+                style={{ 
+                  padding: "10px", 
+                  borderRadius: "6px", 
+                  border: "1px solid #ccc", 
+                  fontSize: "16px", 
+                  width: "100%", 
+                  color: "#222",
+                  boxSizing: "border-box"
+                }}
+                required
               />
             </div>
           )}
           <div>
-            <label style={{ fontWeight: "bold", display: "block", marginBottom: "5px", color: "#222" }}>Email</label>
+            <label style={{ fontWeight: "bold", display: "block", marginBottom: "5px", color: "#222" }}>
+              Email
+            </label>
             <input
               type="email"
               placeholder="Enter your email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              style={{ padding: "10px", borderRadius: "6px", border: "1px solid #ccc", fontSize: "16px", width: "100%", color: "#222" }}
+              style={{ 
+                padding: "10px", 
+                borderRadius: "6px", 
+                border: "1px solid #ccc", 
+                fontSize: "16px", 
+                width: "100%", 
+                color: "#222",
+                boxSizing: "border-box"
+              }}
+              required
             />
           </div>
           <div>
-            <label style={{ fontWeight: "bold", display: "block", marginBottom: "5px", color: "#222" }}>Password</label>
+            <label style={{ fontWeight: "bold", display: "block", marginBottom: "5px", color: "#222" }}>
+              Password
+            </label>
             <input
               type="password"
               placeholder="Enter your password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              style={{ padding: "10px", borderRadius: "6px", border: "1px solid #ccc", fontSize: "16px", width: "100%", color: "#222" }}
+              style={{ 
+                padding: "10px", 
+                borderRadius: "6px", 
+                border: "1px solid #ccc", 
+                fontSize: "16px", 
+                width: "100%", 
+                color: "#222",
+                boxSizing: "border-box"
+              }}
+              required
             />
           </div>
-          {error && <p style={{ color: "red", textAlign: "center" }}>{error}</p>}
+          {error && <p style={{ color: "red", textAlign: "center", fontSize: "14px" }}>{error}</p>}
           <button
             type="submit"
             disabled={loading}
-            style={{ padding: "12px", borderRadius: "6px", border: "none", backgroundColor: "#0070f3", color: "#fff", fontSize: "16px", cursor: "pointer" }}
+            style={{ 
+              padding: "12px", 
+              borderRadius: "6px", 
+              border: "none", 
+              backgroundColor: loading ? "#ccc" : "#0070f3", 
+              color: "#fff", 
+              fontSize: "16px", 
+              cursor: loading ? "not-allowed" : "pointer",
+              transition: "background-color 0.3s"
+            }}
           >
             {loading ? "Please wait..." : isLogin ? "Login" : "Register"}
           </button>
         </form>
         <p style={{ textAlign: "center", marginTop: "20px", color: "#555" }}>
           {isLogin ? "Don't have an account?" : "Already have an account?"}{" "}
-          <span onClick={toggleLogin} style={{ color: "#0070f3", cursor: "pointer", fontWeight: "bold" }}>
+          <span 
+            onClick={toggleLogin} 
+            style={{ 
+              color: "#0070f3", 
+              cursor: "pointer", 
+              fontWeight: "bold",
+              textDecoration: "underline"
+            }}
+          >
             {isLogin ? "Register" : "Login"}
           </span>
         </p>

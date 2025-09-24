@@ -19,15 +19,32 @@ export default function HomePage() {
       }
 
       try {
+        // Fetch user data from Firestore
         const userDoc = await getDoc(doc(db, "users", user.uid));
         if (userDoc.exists()) {
-          setName(userDoc.data().fullName);
+          const userData = userDoc.data();
+          setName(userData.fullName || "User");
         } else {
-          setName("User");
+          // If no document exists, use email as fallback 
+          setName(user.email?.split('@')[0] || "User");
+          console.log("No user document found, using email as fallback");
         }
+        // Clear any previous errors if we successfully got some name
+        setError("");
       } catch (err) {
         console.error("Error fetching user data:", err);
-        setError("Could not fetch user info. Check your network.");
+        // Use email as fallback if Firestore fails
+        const emailName = user.email?.split('@')[0] || "User";
+        setName(emailName);
+        
+        // Only show error if we couldn't get any name at all
+        if (emailName === "User") {
+          setError("Could not fetch user info. Using default name.");
+        } else {
+          // We have a fallback name, so don't show error to user
+          setError("");
+          console.log("Using email fallback due to Firestore error");
+        }
       } finally {
         setLoading(false);
       }
@@ -55,16 +72,33 @@ export default function HomePage() {
         minHeight: "100vh",
         fontFamily: "Arial, sans-serif",
         color: "#222",
-        flexDirection: "column"
+        flexDirection: "column",
+        backgroundColor: "#f0f2f5"
       }}>
-        <p>Loading...</p>
-        <div style={{ marginTop: "10px", width: "40px", height: "40px", border: "4px solid #ccc", borderTop: "4px solid #0070f3", borderRadius: "50%", animation: "spin 1s linear infinite" }}></div>
-        <style>{`
-          @keyframes spin {
-            0% { transform: rotate(0deg);}
-            100% { transform: rotate(360deg);}
-          }
-        `}</style>
+        <div style={{ 
+          backgroundColor: "#fff",
+          padding: "40px",
+          borderRadius: "12px",
+          boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+          textAlign: "center"
+        }}>
+          <p style={{ marginBottom: "20px", fontSize: "16px" }}>Loading...</p>
+          <div style={{ 
+            margin: "0 auto",
+            width: "40px", 
+            height: "40px", 
+            border: "4px solid #e0e0e0", 
+            borderTop: "4px solid #0070f3", 
+            borderRadius: "50%", 
+            animation: "spin 1s linear infinite" 
+          }}></div>
+          <style>{`
+            @keyframes spin {
+              0% { transform: rotate(0deg); }
+              100% { transform: rotate(360deg); }
+            }
+          `}</style>
+        </div>
       </div>
     );
   }
@@ -80,25 +114,57 @@ export default function HomePage() {
       fontFamily: "Arial, sans-serif",
       padding: "20px"
     }}>
-      <h1 style={{ color: "#222", fontSize: "28px", textAlign: "center" }}>
-        Hey, {name}! You’re successfully logged in.
-      </h1>
-      {error && <p style={{ color: "red", marginTop: "10px" }}>{error}</p>}
-      <button 
-        onClick={handleLogout} 
-        style={{
-          marginTop: "20px",
-          padding: "12px 20px",
-          borderRadius: "6px",
-          border: "none",
-          backgroundColor: "#0070f3",
-          color: "#fff",
-          fontSize: "16px",
-          cursor: "pointer"
-        }}
-      >
-        Logout
-      </button>
+      <div style={{
+        backgroundColor: "#fff",
+        padding: "40px",
+        borderRadius: "12px",
+        boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+        textAlign: "center",
+        maxWidth: "500px",
+        width: "100%"
+      }}>
+        <h1 style={{ 
+          color: "#222", 
+          fontSize: "28px", 
+          marginBottom: "20px",
+          fontWeight: "bold"
+        }}>
+          Hey, {name}! You're successfully logged in.
+        </h1>
+        
+        {error && (
+          <div style={{ 
+            color: "#d32f2f", 
+            backgroundColor: "#ffebee", 
+            padding: "10px", 
+            borderRadius: "6px", 
+            marginBottom: "20px",
+            fontSize: "14px"
+          }}>
+            {error}
+          </div>
+        )}
+        
+        <button 
+          onClick={handleLogout} 
+          style={{
+            padding: "12px 24px",
+            borderRadius: "6px",
+            border: "none",
+            backgroundColor: "#0070f3",
+            color: "#fff",
+            fontSize: "16px",
+            cursor: "pointer",
+            fontWeight: "500",
+            transition: "background-color 0.3s"
+          }}
+          onMouseOver={(e) => e.target.style.backgroundColor = "#0056b3"}
+          onMouseOut={(e) => e.target.style.backgroundColor = "#0070f3"}
+        >
+          Logout
+        </button>
+        
+      </div>
     </div>
   );
 }
